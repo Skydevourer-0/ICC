@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img_lib;
+import 'package:image_caption_calculator/model/ocr_item.dart';
 import 'package:image_caption_calculator/services/ocr_service.dart';
 
 import "dart:io";
 import 'package:logging/logging.dart';
 
-class OCRApi {
+class OcrApi {
   /// 图像预处理：缩放宽度到 800，灰度化，转 base64
   static String preprocessImage(Uint8List imgBytes) {
     // 使用 image 库解码图片
@@ -35,19 +36,19 @@ class OCRApi {
   }
 
   /// 处理用户传入的图片字节，调用 OCR 服务返回结果
-  static Future<List<List<Map<String, dynamic>>>> parseImage(
+  static Future<List<List<OcrItem>>> parseImage(
     Uint8List imgBytes,
   ) async {
     final base64Image = preprocessImage(imgBytes);
-    final ocrService = OCRService(base64Image);
+    final ocrService = OcrService(base64Image);
     return await ocrService.run();
   }
 
   /// 计算接口，传入 OCR 识别结果，返回带结果和总和
   static Map<String, dynamic> calculate(
-    List<List<Map<String, dynamic>>> columns,
+    List<List<OcrItem>> columns,
   ) {
-    final ans = OCRService.regexCalculate(columns);
+    final ans = OcrService.regexCalculate(columns);
     return {'data': columns, 'ans': ans};
   }
 }
@@ -75,7 +76,7 @@ Future<void> main(List<String> args) async {
 
   // ③ 调用 OCR 接口：解析图片
   logger.info('🔍 调用 OCRApi.parseImage...');
-  final columns = await OCRApi.parseImage(imgBytes);
+  final columns = await OcrApi.parseImage(imgBytes);
 
   if (columns.isEmpty) {
     logger.severe('🫥 OCR 结果为空');
@@ -88,7 +89,7 @@ Future<void> main(List<String> args) async {
 
   // ④ 调用计算
   logger.info('\n🧮 调用 OCRApi.calculate...');
-  final calc = OCRApi.calculate(columns);
+  final calc = OcrApi.calculate(columns);
 
   // ⑤ 打印最终结果
   logger.info('\n📄 完整 JSON 输出（含每项计算结果 + 总和）:');

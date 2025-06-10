@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:image_caption_calculator/model/ocr_item.dart';
 import 'package:logging/logging.dart';
 
 final _logger = Logger('OCRService');
 
-class OCRService {
+class OcrService {
   // base64 编码图像字符串
   final String imgData;
 
-  OCRService(this.imgData);
+  OcrService(this.imgData);
 
   static const String _apiKey = String.fromEnvironment("API_KEY");
   static const String _secretKey = String.fromEnvironment("SECRET_KEY");
@@ -77,7 +78,7 @@ class OCRService {
   }
 
   /// 计算算式
-  static double regexCalculate(List<List<dynamic>> columns) {
+  static double regexCalculate(List<List<OcrItem>> columns) {
     final mulSigns = r'[xX\*\×]';
     final floatPattern = r'\d+(?:\.\d+)?(?:[a-zA-Z\u4e00-\u9fa5]*)';
     final exprRegex = RegExp(
@@ -93,12 +94,10 @@ class OCRService {
 
     for (final col in columns) {
       for (final item in col) {
-        final text = item['words'] as String? ?? '';
+        final text = item.words;
         final match = exprRegex.firstMatch(text);
-        if (match == null) {
-          item['result'] = null;
-          continue;
-        }
+        if (match == null) continue;
+        // 提取表达式和给定结果
         final expr = match.group(1)!;
         final givenResultStr = match.group(2);
 
@@ -109,10 +108,8 @@ class OCRService {
                 .map((m) => double.parse(m.group(0)!))
                 .toList();
 
-        if (nums.length < 2) {
-          item['result'] = null;
-          continue;
-        }
+        if (nums.length < 2) continue;
+
         try {
           double product = 1.0;
           for (final n in nums) {
@@ -124,15 +121,13 @@ class OCRService {
               _logger.warning(
                 '计算结果与给定结果不符: $expr = $product, 给定: $givenResultStr',
               );
-              item['result'] = null;
               continue;
             }
           }
-          item['result'] = product;
+          item.result = product;
           sum += product;
         } catch (e, st) {
           _logger.warning('计算乘法算式 $expr 失败: $e', e, st);
-          item['result'] = null;
         }
       }
     }
@@ -141,7 +136,7 @@ class OCRService {
   }
 
   /// 调用百度 OCR API，返回识别文本数组
-  Future<List<List<Map<String, dynamic>>>> run() async {
+  Future<List<List<OcrItem>>> run() async {
     final token = await getAccessToken();
     if (token == null) {
       _logger.severe('获取 Access Token 失败');
@@ -186,7 +181,7 @@ class OCRService {
       return [
         for (final col in sortedResults)
           [
-            for (final item in col) {'words': item['words']},
+            for (final item in col) OcrItem.fromMap({'words': item['words']}),
           ],
       ];
     } catch (e, st) {
