@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img_lib;
-import 'package:image_caption_calculator/model/ocr_item.dart';
-import 'package:image_caption_calculator/services/ocr_service.dart';
+import 'package:icc/model/ocr_item.dart';
+import 'package:icc/services/ocr_service.dart';
 
 import "dart:io";
 import 'package:logging/logging.dart';

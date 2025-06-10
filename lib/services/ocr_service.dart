@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:image_caption_calculator/model/ocr_item.dart';
+import 'package:icc/model/ocr_item.dart';
 import 'package:logging/logging.dart';
 
 final _logger = Logger('OCRService');
