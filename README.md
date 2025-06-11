@@ -1,4 +1,4 @@
-# image_caption_calculator
+# icc
 
 A new Flutter project.
 

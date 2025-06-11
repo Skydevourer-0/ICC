@@ -1,4 +1,4 @@
-package com.example.image_caption_calculator;
+package com.example.icc;
 
 import io.flutter.embedding.android.FlutterActivity;
 
