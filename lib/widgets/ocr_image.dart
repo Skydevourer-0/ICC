@@ -30,23 +30,26 @@ class OcrImagePage extends ConsumerWidget {
 
   /// 选择图像来源
   void _pickImageSource(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
       builder: (context) {
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('拍照'),
-              onTap: () => _pickImage(context, ref, ImageSource.camera),
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('从相册选择'),
-              onTap: () => _pickImage(context, ref, ImageSource.gallery),
-            ),
-          ],
+        return AlertDialog(
+          title: const Text('选择图像来源'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('拍照'),
+                onTap: () => _pickImage(context, ref, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('从相册选择'),
+                onTap: () => _pickImage(context, ref, ImageSource.gallery),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -59,10 +62,11 @@ class OcrImagePage extends ConsumerWidget {
     if (imgBytes == null || imgBytes.isEmpty) {
       return _pickImageSource(context, ref);
     }
-    showDialog(
+    showGeneralDialog(
       context: context,
-      builder:
-          (_) => Dialog(
+      pageBuilder:
+          (_, __, ___) => Container(
+            color: Colors.black,
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
               child: InteractiveViewer(child: Image.memory(imgBytes)),
@@ -84,8 +88,10 @@ class OcrImagePage extends ConsumerWidget {
         children: [
           GestureDetector(
             onTap: () => _showImagePreview(context, ref),
+            // 长按重新选择图像
+            onLongPress: () => _pickImageSource(context, ref),
             child:
-                ocrState.imgBytes != null && ocrState.imgBytes!.isNotEmpty
+                ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty
                     ? Container(
                       width: width,
                       height: height,

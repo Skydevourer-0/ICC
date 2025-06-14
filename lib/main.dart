@@ -15,3 +15,7 @@ class OcrHomePage extends ConsumerWidget {
     return Scaffold(body: OcrImagePage());
   }
 }
+
+void main() {
+  runApp(ProviderScope(child: MaterialApp(home: OcrHomePage())));
+}
