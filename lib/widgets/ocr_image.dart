@@ -8,7 +8,7 @@ class OcrImagePage extends ConsumerWidget {
   const OcrImagePage({super.key});
 
   /// 图像选择
-  Future<void> _pickImage(
+  static Future<void> _pickImage(
     BuildContext context,
     WidgetRef ref,
     ImageSource source,
@@ -29,7 +29,7 @@ class OcrImagePage extends ConsumerWidget {
   }
 
   /// 选择图像来源
-  void _pickImageSource(BuildContext context, WidgetRef ref) {
+  static void pickImageSource(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) {
@@ -56,11 +56,11 @@ class OcrImagePage extends ConsumerWidget {
   }
 
   /// 预览图像
-  void _showImagePreview(BuildContext context, WidgetRef ref) {
+  static void showImagePreview(BuildContext context, WidgetRef ref) {
     final imgBytes = ref.read(ocrResultProvider).imgBytes;
     // 若没有图像数据，提示用户选择图像
     if (imgBytes == null || imgBytes.isEmpty) {
-      return _pickImageSource(context, ref);
+      return pickImageSource(context, ref);
     }
     showGeneralDialog(
       context: context,
@@ -75,6 +75,26 @@ class OcrImagePage extends ConsumerWidget {
     );
   }
 
+  /// 解析图像得到表达式列表
+  static Future<void> parseImage(BuildContext context, WidgetRef ref) async {
+    final notifier = ref.read(ocrResultProvider.notifier);
+    try {
+      await notifier.parse();
+      notifier.setShowExprs(true);
+    } catch (e) {
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder:
+              (_) => AlertDialog(
+                title: const Text('解析失败'),
+                content: Text(e.toString()),
+              ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ocrState = ref.watch(ocrResultProvider);
@@ -87,9 +107,9 @@ class OcrImagePage extends ConsumerWidget {
       child: Stack(
         children: [
           GestureDetector(
-            onTap: () => _showImagePreview(context, ref),
+            onTap: () => showImagePreview(context, ref),
             // 长按重新选择图像
-            onLongPress: () => _pickImageSource(context, ref),
+            onLongPress: () => pickImageSource(context, ref),
             child:
                 ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty
                     ? Container(
