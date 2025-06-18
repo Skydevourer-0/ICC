@@ -50,10 +50,11 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
 
     // 不存在 colIndex，则为列表模式，新建 flat 列表
     // 否则直接获取指定列的列表
+    print('build时 当前页：${state.curCol}');
     final list =
-        state.focusedCol == -1
+        state.curCol == -1
             ? state.columns.expand((col) => col).toList()
-            : state.columns[state.focusedCol];
+            : state.columns[state.curCol];
 
     // 计算文本框宽度
     final viewWidth = MediaQuery.of(context).size.width;
@@ -67,39 +68,35 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
       ),
       itemCount: list.length,
       itemBuilder: (context, index) {
-        final colIndex = state.focusedCol;
         final item = list[index];
-        final textController = TextEditingController(text: item.words);
-        // 添加焦点监视
-        final focusNode = FocusNode();
-        final focusedItem = state.focusedItem;
-        focusNode.addListener(() {
-          if (focusNode.hasFocus) {
-            notifier.setFocusedItem(index);
-          } else if (focusedItem == index) {
-            notifier.unfocused();
-          }
-        });
+        final uid = item.uid;
 
         return Row(
           children: [
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: () => notifier.deleteItem(colIndex, index),
+              onPressed: () => notifier.deleteItem(uid),
             ),
             SizedBox(
               width: textFieldWidth,
               child: Focus(
-                focusNode: focusNode,
+                focusNode: item.focusNode,
+                onFocusChange: (hasFocus) {
+                  if (hasFocus) {
+                    print('当前页: ${state.curCol}');
+                    notifier.setFocusedUid(uid);
+                    print('当前页: ${state.curCol}');
+                  }
+                },
                 child: TextField(
-                  controller: textController,
+                  controller: item.controller,
                   onTap:
                       () => Scrollable.ensureVisible(
-                        focusNode.context!,
+                        item.focusNode.context!,
                         duration: const Duration(milliseconds: 300),
                         alignment: 0.5,
                       ),
-                  onChanged: (val) => notifier.updateItem(colIndex, index, val),
+                  onChanged: (val) => notifier.updateItem(uid, val),
                 ),
               ),
             ),
@@ -129,7 +126,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
       // 二维模式，分页展示元素
       return PageView.builder(
         itemCount: state.columns.length,
-        onPageChanged: (index) => notifier.setFocusedCol(index),
+        onPageChanged: (index) => notifier.setCurCol(index),
         itemBuilder: (context, index) {
           return _buildListView(context, ref);
         },

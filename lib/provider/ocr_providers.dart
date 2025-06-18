@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/model/ocr_item.dart';
 import 'package:icc/repository/ocr_repo.dart';
-import 'package:icc/utils.dart';
 
 /// OCR 识别结果 Provider，暴露的入口
 final ocrResultProvider =
@@ -37,11 +36,11 @@ class OcrResultState {
   /// 是否已解析过当前图片
   final bool imgParsed;
 
-  /// 当前焦点列
-  final int focusedCol;
+  /// 当前焦点 id
+  final String focusedUid;
 
-  /// 当前焦点索引
-  final int focusedItem;
+  /// 当前页
+  final int curCol;
 
   /// 构造函数
   OcrResultState({
@@ -53,8 +52,8 @@ class OcrResultState {
     this.paginated = false,
     this.showExprs = false,
     this.imgParsed = false,
-    this.focusedCol = -1,
-    this.focusedItem = -1,
+    this.focusedUid = '',
+    this.curCol = -1,
   });
 
   /// 深度拷贝并更新某个字段
@@ -67,8 +66,8 @@ class OcrResultState {
     bool? paginated,
     bool? showExprs,
     bool? imgParsed,
-    int? focusedCol,
-    int? focusedItem,
+    String? focusedUid,
+    int? curCol,
   }) => OcrResultState(
     imgBytes: imgBytes ?? this.imgBytes,
     columns: columns ?? this.columns,
@@ -78,8 +77,8 @@ class OcrResultState {
     paginated: paginated ?? this.paginated,
     showExprs: showExprs ?? this.showExprs,
     imgParsed: imgParsed ?? this.imgParsed,
-    focusedCol: focusedCol ?? this.focusedCol,
-    focusedItem: focusedItem ?? this.focusedItem,
+    focusedUid: focusedUid ?? this.focusedUid,
+    curCol: curCol ?? this.curCol,
   );
 }
 
@@ -138,63 +137,75 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     state = state.copyWith(showExprs: showExprs);
   }
 
-  /// 设置焦点列
-  void setFocusedCol(int index) {
-    state = state.copyWith(focusedCol: index);
+  /// 设置焦点 id
+  void setFocusedUid(String uid) {
+    state = state.copyWith(focusedUid: uid);
   }
 
-  /// 设置焦点索引
-  void setFocusedItem(int index) {
-    state = state.copyWith(focusedItem: index);
+  /// 设置当前页
+  void setCurCol(int colIdx) {
+    state = state.copyWith(curCol: colIdx);
   }
 
-  /// 取消聚焦
-  void unfocused() {
-    state = state.copyWith(focusedCol: -1, focusedItem: -1);
+  /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾
+  void addItem() {
+    final entry = selectItem(state.focusedUid);
+    final newItem = OcrItem(words: '', result: null);
+    final newColumns = [...state.columns];
+    if (entry == null) {
+      // 未找到对应的 uid，无焦点，添加到当前页的末端
+      final curCol = state.curCol != -1 ? state.curCol : newColumns.length - 1;
+      newColumns[curCol].add(newItem);
+    } else {
+      final (colIdx, itemIdx) = (entry.key, entry.value);
+      newColumns[colIdx] = [...newColumns[colIdx]];
+      newColumns[colIdx].insert(itemIdx, OcrItem(words: '', result: null));
+    }
+    state = state.copyWith(columns: newColumns);
+  }
+
+  /// 删除某项
+  void deleteItem(String uid) {
+    final entry = selectItem(uid);
+    if (entry == null) return;
+    final (colIdx, itemIdx) = (entry.key, entry.value);
+    // 回收 controller 和 focusNode
+    final item = state.columns[colIdx][itemIdx];
+    item.controller.dispose();
+    item.focusNode.dispose();
+    final newColumns = [...state.columns];
+    newColumns[colIdx] = [...newColumns[colIdx]]..removeAt(itemIdx);
+    state = state.copyWith(columns: newColumns);
   }
 
   /// 修改某项
-  void updateItem(int colIdx, int itemIdx, String value) {
-    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
-    (colIdx, itemIdx) = (entry.key, entry.value);
-    // 深度拷贝后修改指定项
+  void updateItem(String uid, String value) {
+    final entry = selectItem(uid);
+    if (entry == null) return;
+    final (colIdx, itemIdx) = (entry.key, entry.value);
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]];
     newColumns[colIdx][itemIdx].words = value;
     state = state.copyWith(columns: newColumns);
   }
 
-  /// 删除某项
-  void deleteItem(int colIdx, int itemIdx) {
-    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
-    (colIdx, itemIdx) = (entry.key, entry.value);
-    final newColumns = [...state.columns];
-    newColumns[colIdx] = [...newColumns[colIdx]]..removeAt(itemIdx);
-    state = state.copyWith(columns: newColumns);
-  }
-
-  /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾
-  void addItem() {
-    var (colIdx, itemIdx) = (state.focusedCol, state.focusedItem);
-    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
-    (colIdx, itemIdx) = (entry.key, entry.value);
-    final newColumns = [...state.columns];
-    newColumns[colIdx] = [...newColumns[colIdx]];
-    if (itemIdx != -1 && itemIdx < newColumns[colIdx].length) {
-      newColumns[colIdx].insert(itemIdx, OcrItem(words: '', result: null));
-    } else {
-      // 默认添加到末尾
-      newColumns[colIdx].add(OcrItem(words: '', result: null));
+  /// 查找项
+  MapEntry<int, int>? selectItem(String uid) {
+    final columns = state.columns;
+    if (uid.isEmpty) return null;
+    for (int col = 0; col < columns.length; col++) {
+      final row = columns[col].indexWhere((item) => item.uid == uid);
+      if (row != -1) return MapEntry(col, row);
     }
-    state = state.copyWith(columns: newColumns);
+    return null;
   }
 
   /// 切换分页
   void togglePagination() {
     state = state.copyWith(
       paginated: !state.paginated,
-      focusedCol: !state.paginated ? 0 : -1,
-      focusedItem: -1,
+      curCol: !state.paginated ? 0 : -1,
+      focusedUid: '',
     );
   }
 }
