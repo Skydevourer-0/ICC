@@ -142,6 +142,17 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
     final ocrState = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
 
+    // 添加回调函数，build 结束后调用
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final focusedUid = ocrState.focusedUid;
+      if (focusedUid.isEmpty) return;
+      final item = notifier.selectItem(focusedUid)?.item;
+      // 聚焦到焦点 item
+      if (item != null && !item.focusNode.hasFocus) {
+        item.focusNode.requestFocus();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('OCR 表达式识别'),

@@ -147,30 +147,29 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     state = state.copyWith(curCol: colIdx);
   }
 
-  /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾
+  /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾，完成后聚焦到新项
   void addItem() {
-    final entry = selectItem(state.focusedUid);
+    final result = selectItem(state.focusedUid);
     final newItem = OcrItem(words: '', result: null);
     final newColumns = [...state.columns];
-    if (entry == null) {
+    if (result == null) {
       // 未找到对应的 uid，无焦点，添加到当前页的末端
       final curCol = state.curCol != -1 ? state.curCol : newColumns.length - 1;
       newColumns[curCol].add(newItem);
     } else {
-      final (colIdx, itemIdx) = (entry.key, entry.value);
+      final (colIdx, itemIdx) = (result.col, result.row);
       newColumns[colIdx] = [...newColumns[colIdx]];
       newColumns[colIdx].insert(itemIdx, OcrItem(words: '', result: null));
     }
-    state = state.copyWith(columns: newColumns);
+    state = state.copyWith(columns: newColumns, focusedUid: newItem.uid);
   }
 
   /// 删除某项
   void deleteItem(String uid) {
-    final entry = selectItem(uid);
-    if (entry == null) return;
-    final (colIdx, itemIdx) = (entry.key, entry.value);
+    final result = selectItem(uid);
+    if (result == null) return;
+    final (colIdx, itemIdx, item) = (result.col, result.row, result.item);
     // 回收 controller 和 focusNode
-    final item = state.columns[colIdx][itemIdx];
     item.controller.dispose();
     item.focusNode.dispose();
     final newColumns = [...state.columns];
@@ -180,9 +179,9 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
 
   /// 修改某项
   void updateItem(String uid, String value) {
-    final entry = selectItem(uid);
-    if (entry == null) return;
-    final (colIdx, itemIdx) = (entry.key, entry.value);
+    final result = selectItem(uid);
+    if (result == null) return;
+    final (colIdx, itemIdx) = (result.col, result.row);
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]];
     newColumns[colIdx][itemIdx].words = value;
@@ -190,12 +189,12 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   }
 
   /// 查找项
-  MapEntry<int, int>? selectItem(String uid) {
+  ({int col, int row, OcrItem item})? selectItem(String uid) {
     final columns = state.columns;
     if (uid.isEmpty) return null;
     for (int col = 0; col < columns.length; col++) {
       final row = columns[col].indexWhere((item) => item.uid == uid);
-      if (row != -1) return MapEntry(col, row);
+      if (row != -1) return (col: col, row: row, item: columns[col][row]);
     }
     return null;
   }
