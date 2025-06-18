@@ -50,7 +50,6 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
 
     // 不存在 colIndex，则为列表模式，新建 flat 列表
     // 否则直接获取指定列的列表
-    print('build时 当前页：${state.curCol}');
     final list =
         state.curCol == -1
             ? state.columns.expand((col) => col).toList()
@@ -83,9 +82,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
                 focusNode: item.focusNode,
                 onFocusChange: (hasFocus) {
                   if (hasFocus) {
-                    print('当前页: ${state.curCol}');
                     notifier.setFocusedUid(uid);
-                    print('当前页: ${state.curCol}');
                   }
                 },
                 child: TextField(
@@ -97,6 +94,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
                         alignment: 0.5,
                       ),
                   onChanged: (val) => notifier.updateItem(uid, val),
+                  style: TextStyle(fontSize: 18),
                 ),
               ),
             ),
@@ -106,7 +104,10 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
             ),
             SizedBox(
               width: resultFieldWidth,
-              child: Text(item.result?.toStringAsFixed(2) ?? ''),
+              child: Text(
+                item.result?.toStringAsFixed(2) ?? '',
+                style: TextStyle(fontSize: 16),
+              ),
             ),
           ],
         );
