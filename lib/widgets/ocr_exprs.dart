@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/provider/ocr_providers.dart';
-import 'package:icc/model/ocr_item.dart';
 import 'package:icc/widgets/ocr_image.dart';
 
 /// OCR 表达式页面，负责识别图像中的表达式，展示和计算表达式结果
@@ -32,39 +31,29 @@ class OcrExprsPage extends ConsumerStatefulWidget {
       }
     }
   }
-
-  /// 将一维索引映射回列和项索引
-  static MapEntry<int, int> getColAndItemIdx(
-    List<List<OcrItem>> columns,
-    int flatIndex,
-  ) {
-    int count = 0;
-    for (int col = 0; col < columns.length; col++) {
-      if (flatIndex < count + columns[col].length) {
-        return MapEntry(col, flatIndex - count);
-      }
-      count += columns[col].length;
-    }
-    throw Exception('Index out of range');
-  }
 }
 
 class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
   /// 滚动控制
   final ScrollController _scrollController = ScrollController();
 
+  /// 回收控制器
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
   Widget _buildListView(BuildContext context, WidgetRef ref) {
     final state = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
 
-    int colIndex = state.focusedCol;
-
     // 不存在 colIndex，则为列表模式，新建 flat 列表
     // 否则直接获取指定列的列表
     final list =
-        colIndex == -1
+        state.focusedCol == -1
             ? state.columns.expand((col) => col).toList()
-            : state.columns[colIndex];
+            : state.columns[state.focusedCol];
 
     // 计算文本框宽度
     final viewWidth = MediaQuery.of(context).size.width;
@@ -78,15 +67,9 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
       ),
       itemCount: list.length,
       itemBuilder: (context, index) {
+        final colIndex = state.focusedCol;
         final item = list[index];
-        final controller = TextEditingController(text: item.words);
-        // 将一维索引转换为列和项索引
-        int itemIndex = index;
-        if (colIndex == -1) {
-          final pos = OcrExprsPage.getColAndItemIdx(state.columns, index);
-          colIndex = pos.key;
-          itemIndex = pos.value;
-        }
+        final textController = TextEditingController(text: item.words);
         // 添加焦点监视
         final focusNode = FocusNode();
         final focusedItem = state.focusedItem;
@@ -102,23 +85,21 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
           children: [
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: () => notifier.deleteItem(colIndex, itemIndex),
+              onPressed: () => notifier.deleteItem(colIndex, index),
             ),
             SizedBox(
               width: textFieldWidth,
               child: Focus(
                 focusNode: focusNode,
                 child: TextField(
-                  controller: controller,
+                  controller: textController,
                   onTap:
                       () => Scrollable.ensureVisible(
                         focusNode.context!,
                         duration: const Duration(milliseconds: 300),
                         alignment: 0.5,
                       ),
-                  onSubmitted:
-                      (value) =>
-                          notifier.updateItem(colIndex, itemIndex, value),
+                  onChanged: (val) => notifier.updateItem(colIndex, index, val),
                 ),
               ),
             ),

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/model/ocr_item.dart';
 import 'package:icc/repository/ocr_repo.dart';
+import 'package:icc/utils.dart';
 
 /// OCR 识别结果 Provider，暴露的入口
 final ocrResultProvider =
@@ -154,6 +155,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
 
   /// 修改某项
   void updateItem(int colIdx, int itemIdx, String value) {
+    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
+    (colIdx, itemIdx) = (entry.key, entry.value);
     // 深度拷贝后修改指定项
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]];
@@ -163,16 +166,21 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
 
   /// 删除某项
   void deleteItem(int colIdx, int itemIdx) {
+    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
+    (colIdx, itemIdx) = (entry.key, entry.value);
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]]..removeAt(itemIdx);
     state = state.copyWith(columns: newColumns);
   }
 
-  /// 添加项，坐标为可选参数
-  void addItem(int colIdx, {int? itemIdx}) {
+  /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾
+  void addItem() {
+    var (colIdx, itemIdx) = (state.focusedCol, state.focusedItem);
+    final entry = OcrUtils.getColAndItemIdx(state.columns, colIdx, itemIdx);
+    (colIdx, itemIdx) = (entry.key, entry.value);
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]];
-    if (itemIdx != null && itemIdx < newColumns[colIdx].length) {
+    if (itemIdx != -1 && itemIdx < newColumns[colIdx].length) {
       newColumns[colIdx].insert(itemIdx, OcrItem(words: '', result: null));
     } else {
       // 默认添加到末尾
@@ -185,7 +193,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   void togglePagination() {
     state = state.copyWith(
       paginated: !state.paginated,
-      focusedCol: state.paginated ? 0 : -1,
+      focusedCol: !state.paginated ? 0 : -1,
       focusedItem: -1,
     );
   }
