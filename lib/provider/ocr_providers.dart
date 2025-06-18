@@ -73,7 +73,7 @@ class OcrResultState {
     columns: columns ?? this.columns,
     ans: ans ?? this.ans,
     loading: loading ?? this.loading,
-    error: error ?? this.error,
+    error: error,
     paginated: paginated ?? this.paginated,
     showExprs: showExprs ?? this.showExprs,
     imgParsed: imgParsed ?? this.imgParsed,
@@ -159,7 +159,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     } else {
       final (colIdx, itemIdx) = (result.col, result.row);
       newColumns[colIdx] = [...newColumns[colIdx]];
-      newColumns[colIdx].insert(itemIdx, OcrItem(words: '', result: null));
+      newColumns[colIdx].insert(itemIdx + 1, newItem);
     }
     state = state.copyWith(columns: newColumns, focusedUid: newItem.uid);
   }
