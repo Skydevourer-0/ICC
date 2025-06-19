@@ -85,9 +85,9 @@ class OcrService {
       // 可选的前缀说明
       r"^[\s\u4e00-\u9fa5]*"
       // 主表达式：匹配一个或多个数字（可带小数和单位），中间用乘号连接
-      "($floatPattern\\s*(?:$mulSigns\\s*$floatPattern)+)"
+      "(?<expr>$floatPattern\\s*(?:$mulSigns\\s*$floatPattern)+)?"
       // 可选的等号和结果
-      r"(?:\s*=\s*(\d+(?:\.\d+)?)?)?$",
+      r"(?:\s*=\s*(?<result>\d+(?:\.\d+)?)?)?$",
     );
 
     double sum = 0.0;
@@ -98,25 +98,27 @@ class OcrService {
         final match = exprRegex.firstMatch(text);
         if (match == null) continue;
         // 提取表达式和给定结果
-        final expr = match.group(1)!;
-        final givenResultStr = match.group(2);
-
-        final numRegex = RegExp(r'\d+(?:\.\d+)?');
-        final nums =
-            numRegex
-                .allMatches(expr)
-                .map((m) => double.parse(m.group(0)!))
-                .toList();
-
-        if (nums.length < 2) continue;
+        final expr = match.namedGroup('expr');
+        final givenResultStr = match.namedGroup('result');
 
         try {
-          double product = 1.0;
-          for (final n in nums) {
-            product *= n;
+          double? product;
+          if (expr != null) {
+            product = 1;
+            final numRegex = RegExp(r'\d+(?:\.\d+)?');
+            final nums =
+                numRegex
+                    .allMatches(expr)
+                    .map((m) => double.parse(m.group(0)!))
+                    .toList();
+            for (final n in nums) {
+              product = product! * n;
+            }
           }
+
           if (givenResultStr != null) {
             final givenResult = double.parse(givenResultStr);
+            product ??= givenResult;
             if ((product - givenResult).abs() > 0.2) {
               _logger.warning(
                 '计算结果与给定结果不符: $expr = $product, 给定: $givenResultStr',
@@ -125,7 +127,7 @@ class OcrService {
             }
           }
           item.result = product;
-          sum += product;
+          if (product != null) sum += product;
         } catch (e, st) {
           _logger.warning('计算乘法算式 $expr 失败: $e', e, st);
         }
