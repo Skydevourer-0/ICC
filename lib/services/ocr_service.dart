@@ -1,21 +1,26 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:icc/model/ocr_item.dart';
+import 'package:image/image.dart' as img_lib;
 import 'package:logging/logging.dart';
 
 final _logger = Logger('OCRService');
 
 class OcrService {
-  // base64 编码图像字符串
+  /// 图像数据
+  final Uint8List imgBytes;
+
+  /// base64 编码图像字符串
   final String imgData;
 
-  OcrService(this.imgData);
+  OcrService(this.imgBytes) : imgData = _preprocessImage(imgBytes);
 
   static const String _apiKey = String.fromEnvironment("API_KEY");
   static const String _secretKey = String.fromEnvironment("SECRET_KEY");
 
   /// 获取 Access Token
-  static Future<String?> getAccessToken() async {
+  Future<String?> _getAccessToken() async {
     final url = Uri.parse('https://aip.baidubce.com/oauth/2.0/token');
 
     final params = {
@@ -38,7 +43,7 @@ class OcrService {
   }
 
   /// 对 OCR 结果进行排序（左列优先，同列上方优先）
-  static List<List<dynamic>>? sortOcrResults(List<dynamic>? results) {
+  List<List<dynamic>>? _sortOcrResults(List<dynamic>? results) {
     if (results == null || results.isEmpty) return null;
 
     const int disThreshold = 100;
@@ -75,6 +80,32 @@ class OcrService {
     }
 
     return columns;
+  }
+
+  /// 图像预处理：缩放宽度到 800，灰度化，转 base64
+  static String _preprocessImage(Uint8List imgBytes) {
+    // 使用 image 库解码图片
+    final image = img_lib.decodeImage(imgBytes);
+    if (image == null) {
+      throw Exception('图片解码失败');
+    }
+
+    // 按比例缩放到宽度800
+    final newWidth = 800;
+    final newHeight = (image.height * newWidth / image.width).round();
+    final resized = img_lib.copyResize(
+      image,
+      width: newWidth,
+      height: newHeight,
+    );
+    // 灰度化
+    final grayImage = img_lib.grayscale(resized);
+    // 编码为 jpg bytes
+    final jpgBytes = img_lib.encodeJpg(grayImage);
+    // 转 base64
+    final base64Str = base64Encode(jpgBytes);
+
+    return base64Str;
   }
 
   /// 计算算式
@@ -137,12 +168,12 @@ class OcrService {
     return sum;
   }
 
-  /// 调用百度 OCR API，返回识别文本数组
-  Future<List<List<OcrItem>>> run() async {
-    final token = await getAccessToken();
+  /// 调用百度 OCR API，返回识别文本数组与计算结果
+  Future<(List<List<OcrItem>>, double)?> run() async {
+    final token = await _getAccessToken();
     if (token == null) {
       _logger.severe('获取 Access Token 失败');
-      return [];
+      return null;
     }
 
     final url = Uri.parse(
@@ -168,27 +199,30 @@ class OcrService {
 
       if (response.statusCode != 200) {
         _logger.severe('OCR请求失败，状态码：${response.statusCode}');
-        return [];
+        return null;
       }
 
       final jsonResp = json.decode(response.body);
       final wordsResult = jsonResp['words_result'] as List<dynamic>?;
 
-      final sortedResults = sortOcrResults(wordsResult);
+      final sortedResults = _sortOcrResults(wordsResult);
       if (sortedResults == null) {
         _logger.warning('OCR结果为空');
-        return [];
+        return null;
       }
-
-      return [
+      // 构造识别结果列表
+      final columns = [
         for (final col in sortedResults)
           [
             for (final item in col) OcrItem.fromMap({'words': item['words']}),
           ],
       ];
+      // 计算列表中的算式结果
+      double ans = regexCalculate(columns);
+      return (columns, ans);
     } catch (e, st) {
       _logger.severe('OCR结果解析失败: $e', e, st);
-      return [];
+      return null;
     }
   }
 }
