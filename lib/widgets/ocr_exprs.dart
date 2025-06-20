@@ -120,7 +120,8 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
     final notifier = ref.read(ocrResultProvider.notifier);
 
     if (state.loading) {
-      return const Center(child: CircularProgressIndicator());
+      // 加载中，则返回空页面
+      return const Center();
     } else if (state.imgBytes == null) {
       return const Center(child: Text("请先选择图像进行识别"));
     } else if (state.paginated) {

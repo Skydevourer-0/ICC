@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/widgets/ocr_image.dart';
 import 'package:icc/widgets/ocr_exprs.dart';
@@ -15,6 +16,7 @@ class OcrHomePage extends ConsumerWidget {
 
     if (!ocrState.showExprs) {
       return FloatingActionButton(
+        shape: const CircleBorder(),
         onPressed: () async {
           return ocrState.imgParsed
               ? notifier.setShowExprs(true)
@@ -27,22 +29,34 @@ class OcrHomePage extends ConsumerWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        FloatingActionButton(
-          onPressed: () => notifier.export(ocrState.columns),
-          child: const Icon(Icons.file_download),
+        SpeedDial(
+          icon: Icons.more_horiz,
+          activeIcon: Icons.close,
+          spaceBetweenChildren: 8,
+          spacing: 12,
+          direction: SpeedDialDirection.up,
+          children: [
+            SpeedDialChild(
+              onTap: () => notifier.setShowExprs(false),
+              child: const Icon(Icons.image),
+              label: '选择图片',
+            ),
+            SpeedDialChild(
+              onTap: () => notifier.export(ocrState.columns),
+              child: const Icon(Icons.file_download),
+              label: '下载表格',
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         FloatingActionButton(
-          onPressed: () => notifier.setShowExprs(false),
-          child: const Icon(Icons.image),
-        ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
+          shape: const CircleBorder(),
           onPressed: () => notifier.addItem(),
-          child: const Icon(Icons.add),
+          child: const Icon(Icons.playlist_add),
         ),
         const SizedBox(height: 8),
         FloatingActionButton(
+          shape: const CircleBorder(),
           onPressed: () async {
             await OcrExprsPage.calculateResult(context, ref);
           },
@@ -57,30 +71,36 @@ class OcrHomePage extends ConsumerWidget {
     final ocrState = ref.watch(ocrResultProvider);
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Stack(
-          children: [
-            // 图片上传页
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              top: ocrState.showExprs ? -MediaQuery.of(context).size.height : 0,
-              left: 0,
-              right: 0,
-              height: MediaQuery.of(context).size.height,
-              child: OcrImagePage(),
+      body: Stack(
+        children: [
+          // 图片上传页
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            top: ocrState.showExprs ? -MediaQuery.of(context).size.height : 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height,
+            child: OcrImagePage(),
+          ),
+          // 表达式页
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            top: ocrState.showExprs ? 0 : MediaQuery.of(context).size.height,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height,
+            child: OcrExprsPage(),
+          ),
+          // 加载页
+          if (ocrState.loading)
+            // 显示加载指示器
+            Positioned.fill(
+              child: Container(
+                color: Colors.black45,
+                child: const Center(child: CircularProgressIndicator()),
+              ),
             ),
-            // 表达式页
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              top: ocrState.showExprs ? 0 : MediaQuery.of(context).size.height,
-              left: 0,
-              right: 0,
-              height: MediaQuery.of(context).size.height,
-              child: OcrExprsPage(),
-            ),
-          ],
-        ),
+        ],
       ),
       floatingActionButton: floatingButton(context, ref),
     );

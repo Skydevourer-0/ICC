@@ -104,52 +104,37 @@ class OcrImagePage extends ConsumerWidget {
     final height = screenSize.height * 0.6;
 
     return Center(
-      child: Stack(
-        children: [
-          GestureDetector(
-            onTap: () => showImagePreview(context, ref),
-            // 长按重新选择图像
-            onLongPress: () => pickImageSource(context, ref),
-            child:
-                ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty
-                    ? Container(
-                      width: width,
-                      height: height,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
-                          SizedBox(height: 12),
-                          Text('点击上传图片', style: TextStyle(color: Colors.grey)),
-                        ],
-                      ),
-                    )
-                    : ClipRRect(
-                      borderRadius: BorderRadius.circular(16), // 设置圆角半径
-                      child: Image.memory(
-                        ocrState.imgBytes!,
-                        width: width,
-                        height: height,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-          ),
-          if (ocrState.loading)
-            // 显示加载指示器
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.black45,
-                  borderRadius: BorderRadius.circular(16),
+      child: GestureDetector(
+        onTap: () => showImagePreview(context, ref),
+        // 长按重新选择图像
+        onLongPress: () => pickImageSource(context, ref),
+        child:
+            ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty
+                ? Container(
+                  width: width,
+                  height: height,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
+                      SizedBox(height: 12),
+                      Text('点击上传图片', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                )
+                : ClipRRect(
+                  borderRadius: BorderRadius.circular(16), // 设置圆角半径
+                  child: Image.memory(
+                    ocrState.imgBytes!,
+                    width: width,
+                    height: height,
+                    fit: BoxFit.contain,
+                  ),
                 ),
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-            ),
-        ],
       ),
     );
   }
