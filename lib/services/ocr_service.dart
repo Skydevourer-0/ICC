@@ -1,13 +1,9 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:icc/model/ocr_item.dart';
 import 'package:image/image.dart' as img_lib;
 import 'package:logging/logging.dart';
-import 'package:open_file/open_file.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 
 final _logger = Logger('OCRService');
 
@@ -170,36 +166,6 @@ class OcrService {
     }
 
     return sum;
-  }
-
-  /// 将列表导出为表格
-  static Future<void> exportExcel(List<List<OcrItem>> columns) async {
-    final workbook = Workbook();
-    final sheet = workbook.worksheets[0];
-
-    int offset = 0;
-    for (var i = 0; i < columns.length; i++) {
-      final col = columns[i];
-      if (col.isEmpty) continue;
-
-      for (var j = 0; j < col.length; j++) {
-        final item = col[j];
-        sheet.getRangeByIndex(j + 1, offset + 1).setText(item.words);
-        if (item.result == null) continue;
-        final result = item.result!.toStringAsFixed(2);
-        sheet.getRangeByIndex(j + 1, offset + 2).setText('= $result');
-      }
-      offset += 3;
-    }
-
-    final bytes = workbook.saveAsStream();
-    workbook.dispose();
-
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/ocr_result.xlsx');
-    await file.writeAsBytes(bytes);
-    // 打开文件或提供用户选择分享方式
-    await OpenFile.open(file.path);
   }
 
   /// 调用百度 OCR API，返回识别文本数组与计算结果

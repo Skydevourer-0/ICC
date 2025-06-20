@@ -42,7 +42,7 @@ class OcrHomePage extends ConsumerWidget {
               label: '选择图片',
             ),
             SpeedDialChild(
-              onTap: () => notifier.export(ocrState.columns),
+              onTap: () => notifier.export(),
               child: const Icon(Icons.file_download),
               label: '下载表格',
             ),

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:icc/model/ocr_item.dart';
+import 'package:icc/services/ocr_pdf_service.dart';
 import 'package:icc/services/ocr_service.dart';
 
 /// OCR 数据仓库，负责与后端交互
@@ -25,7 +26,8 @@ class OcrRepository {
   }
 
   /// 导出文件
-  Future<void> export(List<List<OcrItem>> columns) async {
-    return await OcrService.exportExcel(columns);
+  Future<void> export(List<List<OcrItem>> columns, double ans) async {
+    final pdfService = OcrPdfService(columns, ans);
+    return await pdfService.export();
   }
 }
