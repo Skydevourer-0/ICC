@@ -28,6 +28,11 @@ class OcrHomePage extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         FloatingActionButton(
+          onPressed: () => notifier.export(ocrState.columns),
+          child: const Icon(Icons.file_download),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
           onPressed: () => notifier.setShowExprs(false),
           child: const Icon(Icons.image),
         ),

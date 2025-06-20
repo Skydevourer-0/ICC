@@ -23,4 +23,9 @@ class OcrRepository {
     final ans = OcrService.regexCalculate(columns);
     return (columns, ans);
   }
+
+  /// 导出文件
+  Future<void> export(List<List<OcrItem>> columns) async {
+    return await OcrService.exportExcel(columns);
+  }
 }

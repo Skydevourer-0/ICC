@@ -117,6 +117,18 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     }
   }
 
+  /// 导出文件
+  Future<void> export(List<List<OcrItem>> columns) async {
+    state = state.copyWith(loading: true, error: null);
+    try {
+      await repo.export(columns);
+      state = state.copyWith(loading: false);
+    } catch (e) {
+      state = state.copyWith(error: e.toString(), loading: false);
+      rethrow;
+    }
+  }
+
   /// 设置图像数据
   void setImage(Uint8List? bytes) {
     state = state.copyWith(
