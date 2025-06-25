@@ -25,7 +25,7 @@ class OcrPdfService {
     final pageWidth = PdfPageFormat.a4.landscape.width;
     final usableWidth = pageWidth - margin;
     final colCount = columns.where((col) => col.isNotEmpty).length;
-    colWidth = usableWidth / colCount - 10;
+    colWidth = usableWidth / colCount - 30;
     // 计算字体大小
     final pageHeight = PdfPageFormat.a4.landscape.height;
     // 22 为标题字号，1.2 为行高系数
@@ -37,21 +37,23 @@ class OcrPdfService {
 
   /// 构造每一行的 words + result
   pw.Widget _buildRowItem(OcrItem item) {
+    final words = item.words.replaceAll(RegExp(r'[*X×]'), 'x').split('=').first;
     final result =
         item.result != null ? '= ${item.result!.toStringAsFixed(2)}' : '';
+
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
         pw.Expanded(
           child: pw.Text(
-            item.words,
+            words,
             softWrap: true,
             style: pw.TextStyle(font: fontFamily, fontSize: fontSize),
           ),
         ),
         pw.Text(
           result,
-          textAlign: pw.TextAlign.right,
+          textAlign: pw.TextAlign.left,
           style: pw.TextStyle(fontSize: fontSize),
         ),
       ],
@@ -90,7 +92,7 @@ class OcrPdfService {
                   ),
                   pw.SizedBox(height: 10),
                   pw.Wrap(
-                    spacing: 10,
+                    spacing: 30,
                     runSpacing: 10,
                     children: [
                       for (var col in columns) _buildColumnWidget(col),
