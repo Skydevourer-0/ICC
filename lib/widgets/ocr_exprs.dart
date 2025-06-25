@@ -91,7 +91,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
                       () => Scrollable.ensureVisible(
                         item.focusNode.context!,
                         duration: const Duration(milliseconds: 300),
-                        alignment: 0.5,
+                        alignment: 0.4,
                       ),
                   onChanged: (val) => notifier.updateItem(uid, val),
                   style: TextStyle(fontSize: 18),

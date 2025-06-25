@@ -111,7 +111,7 @@ class OcrService {
   /// 计算算式
   static double regexCalculate(List<List<OcrItem>> columns) {
     final mulSigns = r'[xX\*\×]';
-    final floatPattern = r'\d+(?:\.\d+)?(?:[a-zA-Z\u4e00-\u9fa5]*)';
+    final floatPattern = r'\d+(?:\.\d+)?(?:[a-zA-Z\u4e00-\u9fa5\(\)（）]*)';
     final exprRegex = RegExp(
       // 可选的前缀说明
       r"^[\s\u4e00-\u9fa5]*"
