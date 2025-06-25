@@ -6,15 +6,31 @@ import 'package:printing/printing.dart';
 import 'package:icc/model/ocr_item.dart';
 
 class OcrPdfService {
-  final List<List<OcrItem>> columns;
+  final List<List<OcrItem>> oriColumns;
+  final List<List<(String, String)>> columns;
   final double ans;
 
   pw.Font? fontFamily;
   double? colWidth;
   double? fontSize;
 
-  OcrPdfService(this.columns, this.ans) {
-    if (columns.isEmpty) throw Exception("列表为空");
+  OcrPdfService(this.oriColumns, this.ans)
+    : columns = _preprocessColumns(oriColumns) {
+    if (oriColumns.isEmpty) throw Exception("列表为空");
+  }
+
+  static List<List<(String, String)>> _preprocessColumns(
+    List<List<OcrItem>> columns,
+  ) {
+    return columns.map((col) {
+      return col.map((item) {
+        final words =
+            item.words.replaceAll(RegExp(r'[*X×]'), 'x').split('=').first;
+        final result =
+            item.result != null ? '= ${item.result!.toStringAsFixed(2)}' : '';
+        return (words, result);
+      }).toList();
+    }).toList();
   }
 
   Future<void> _initConfig() async {
@@ -36,11 +52,8 @@ class OcrPdfService {
   }
 
   /// 构造每一行的 words + result
-  pw.Widget _buildRowItem(OcrItem item) {
-    final words = item.words.replaceAll(RegExp(r'[*X×]'), 'x').split('=').first;
-    final result =
-        item.result != null ? '= ${item.result!.toStringAsFixed(2)}' : '';
-
+  pw.Widget _buildRowItem((String, String) item) {
+    final (words, result) = item;
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
@@ -61,7 +74,7 @@ class OcrPdfService {
   }
 
   // 构造每一列的 widget
-  pw.Widget _buildColumnWidget(List<OcrItem> col) {
+  pw.Widget _buildColumnWidget(List<(String, String)> col) {
     if (col.isEmpty) return pw.SizedBox.shrink();
     return pw.Container(
       width: colWidth,
