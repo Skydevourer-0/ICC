@@ -5,7 +5,6 @@ import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/utils.dart';
 import 'package:icc/widgets/ocr_image.dart';
 import 'package:icc/widgets/ocr_exprs.dart';
-import 'package:logging/logging.dart';
 
 class OcrHomePage extends ConsumerWidget {
   const OcrHomePage({super.key});
@@ -121,11 +120,6 @@ class OcrHomePage extends ConsumerWidget {
 
 void main() {
   // 设置日志打印
-  Logger.root.level = Level.ALL; // 设置日志级别
-  Logger.root.onRecord.listen((record) {
-    print(
-      '[${record.level.name}] ${record.loggerName}: ${record.time}: ${record.message}',
-    );
-  });
+  OcrUtils.setupLogging();
   runApp(ProviderScope(child: MaterialApp(home: OcrHomePage())));
 }
