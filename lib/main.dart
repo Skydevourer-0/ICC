@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:icc/model/ocr_item.dart';
 import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/utils.dart';
@@ -38,112 +37,9 @@ class _OcrHomePageState extends ConsumerState<OcrHomePage>
     }
   }
 
-  Widget floatingButton(BuildContext context) {
-    final ocrState = ref.watch(ocrResultProvider);
-    final notifier = ref.read(ocrResultProvider.notifier);
-
-    if (!ocrState.showExprs) {
-      return FloatingActionButton(
-        shape: const CircleBorder(),
-        onPressed: () async {
-          return ocrState.imgParsed
-              ? notifier.setShowExprs(true)
-              : await OcrImagePage.parseImage(context, ref);
-        },
-        child:
-            ocrState.imgParsed ? const Icon(Icons.calculate) : const Text('解析'),
-      );
-    }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SpeedDial(
-          icon: Icons.more_horiz,
-          activeIcon: Icons.close,
-          spaceBetweenChildren: 8,
-          spacing: 12,
-          direction: SpeedDialDirection.up,
-          children: [
-            SpeedDialChild(
-              onTap: () => notifier.setShowExprs(false),
-              child: const Icon(Icons.image),
-              label: '选择图片',
-            ),
-            SpeedDialChild(
-              onTap: () async {
-                try {
-                  await notifier.export();
-                } catch (e) {
-                  if (context.mounted) {
-                    OcrUtils.showErrorDialog(
-                      context,
-                      e.toString(),
-                      title: '导出失败',
-                    );
-                  }
-                }
-              },
-              child: const Icon(Icons.file_download),
-              label: '下载表格',
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
-          shape: const CircleBorder(),
-          onPressed: () => notifier.addItem(),
-          child: const Icon(Icons.playlist_add),
-        ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
-          shape: const CircleBorder(),
-          onPressed: () async {
-            await OcrExprsPage.calculateResult(context, ref);
-          },
-          child: const Text('计算'),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ocrState = ref.watch(ocrResultProvider);
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          // 图片上传页
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            top: ocrState.showExprs ? -MediaQuery.of(context).size.height : 0,
-            left: 0,
-            right: 0,
-            height: MediaQuery.of(context).size.height,
-            child: OcrImagePage(),
-          ),
-          // 表达式页
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 200),
-            top: ocrState.showExprs ? 0 : MediaQuery.of(context).size.height,
-            left: 0,
-            right: 0,
-            height: MediaQuery.of(context).size.height,
-            child: OcrExprsPage(),
-          ),
-          // 加载页
-          if (ocrState.loading)
-            // 显示加载指示器
-            Positioned.fill(
-              child: Container(
-                color: Colors.black45,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-            ),
-        ],
-      ),
-      floatingActionButton: floatingButton(context),
-    );
+    return const OcrImagePage();
   }
 }
 
@@ -155,5 +51,12 @@ void main() async {
   // 设置日志打印
   OcrUtils.setupLogging();
   // 启动应用
-  runApp(ProviderScope(child: MaterialApp(home: OcrHomePage())));
+  runApp(
+    ProviderScope(
+      child: MaterialApp(
+        home: OcrHomePage(),
+        routes: {'/ocr_exprs': (context) => const OcrExprsPage()},
+      ),
+    ),
+  );
 }

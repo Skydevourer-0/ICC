@@ -95,12 +95,6 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
                 },
                 child: TextField(
                   controller: item.controller,
-                  onTap:
-                      () => Scrollable.ensureVisible(
-                        item.focusNode.context!,
-                        duration: const Duration(milliseconds: 300),
-                        alignment: 0.4,
-                      ),
                   onChanged: (val) => notifier.updateItem(uid, val),
                   style: TextStyle(fontSize: 18),
                 ),
@@ -147,6 +141,42 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
     }
   }
 
+  Widget _floatingButton(BuildContext context) {
+    final notifier = ref.read(ocrResultProvider.notifier);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () async {
+            try {
+              await notifier.export();
+            } catch (e) {
+              if (context.mounted) {
+                OcrUtils.showErrorDialog(context, e.toString(), title: '导出失败');
+              }
+            }
+          },
+          child: const Icon(Icons.file_download),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () => notifier.addItem(),
+          child: const Icon(Icons.playlist_add),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () async {
+            await OcrExprsPage.calculateResult(context, ref);
+          },
+          child: const Text('计算'),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ocrState = ref.watch(ocrResultProvider);
@@ -179,22 +209,25 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              '总计: ${ocrState.ans.toStringAsFixed(2)}',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20),
-            ),
+          Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  '总计: ${ocrState.ans.toStringAsFixed(2)}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 20),
+                ),
+              ),
+              Expanded(child: _exprsList(context)),
+            ],
           ),
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.8,
-            child: _exprsList(context),
-          ),
+          if (ocrState.loading) OcrUtils.loadingPage(),
         ],
       ),
+      floatingActionButton: _floatingButton(context),
     );
   }
 }

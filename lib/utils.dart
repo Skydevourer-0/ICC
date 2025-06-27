@@ -43,4 +43,14 @@ class OcrUtils {
       );
     });
   }
+
+  /// 加载页面
+  static Widget loadingPage() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black45,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    );
+  }
 }

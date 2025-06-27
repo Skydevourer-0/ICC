@@ -29,9 +29,6 @@ class OcrResultState {
   /// 是否正在加载
   final bool loading;
 
-  /// 是否展示表达式列表
-  final bool showExprs;
-
   /// 是否已解析过当前图片
   final bool imgParsed;
 
@@ -47,7 +44,6 @@ class OcrResultState {
     required this.columns,
     required this.ans,
     this.loading = false,
-    this.showExprs = false,
     this.imgParsed = false,
     this.focusedUid = '',
     this.curPage = -1,
@@ -59,7 +55,6 @@ class OcrResultState {
     List<List<OcrItem>>? columns,
     double? ans,
     bool? loading,
-    bool? showExprs,
     bool? imgParsed,
     String? focusedUid,
     int? curPage,
@@ -68,7 +63,6 @@ class OcrResultState {
     columns: columns ?? this.columns,
     ans: ans ?? this.ans,
     loading: loading ?? this.loading,
-    showExprs: showExprs ?? this.showExprs,
     imgParsed: imgParsed ?? this.imgParsed,
     focusedUid: focusedUid ?? this.focusedUid,
     curPage: curPage ?? this.curPage,
@@ -100,7 +94,6 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       final columnsRaw = box.get('columns');
       final ans = box.get('ans');
       final loading = box.get('loading');
-      final showExprs = box.get('showExprs');
       final imgParsed = box.get('imgParsed');
       final focusedUid = box.get('focusedUid');
       final curPage = box.get('curPage');
@@ -117,7 +110,6 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
         columns: columns ?? [],
         ans: ans ?? 0.0,
         loading: loading ?? false,
-        showExprs: showExprs ?? false,
         imgParsed: imgParsed ?? false,
         focusedUid: focusedUid ?? '',
         curPage: curPage ?? -1,
@@ -139,7 +131,6 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       await box.put('columns', state.columns);
       await box.put('ans', state.ans);
       await box.put('loading', state.loading);
-      await box.put('showExprs', state.showExprs);
       await box.put('imgParsed', state.imgParsed);
       await box.put('focusedUid', state.focusedUid);
       await box.put('curPage', state.curPage);
@@ -198,15 +189,9 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       imgParsed: false,
     );
   }
-
   /// 设置加载状态
   void setLoading(bool loading) {
     state = state.copyWith(loading: loading);
-  }
-
-  /// 设置表达式显示
-  void setShowExprs(bool showExprs) {
-    state = state.copyWith(showExprs: showExprs);
   }
 
   /// 设置焦点 id
