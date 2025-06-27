@@ -31,6 +31,9 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
   /// 滚动控制
   final ScrollController _scrollController = ScrollController();
 
+  /// 是否分页
+  bool _paginated = false;
+
   /// 回收控制器
   @override
   void dispose() {
@@ -38,16 +41,27 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
     super.dispose();
   }
 
-  Widget _buildListView(BuildContext context, WidgetRef ref) {
+  /// 切换分页模式
+  void _togglePagination() {
+    _paginated = !_paginated; // 切换分页状态
+    final notifier = ref.read(ocrResultProvider.notifier);
+    // 重置当前列索引
+    notifier.setCurPage(_paginated ? 0 : -1);
+    // 重置焦点 UID
+    notifier.setFocusedUid('');
+  }
+
+  /// 构造列表视图
+  Widget _buildListView(BuildContext context) {
     final state = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
 
     // 不存在 colIndex，则为列表模式，新建 flat 列表
     // 否则直接获取指定列的列表
     final list =
-        state.curCol == -1
+        state.curPage == -1
             ? state.columns.expand((col) => col).toList()
-            : state.columns[state.curCol];
+            : state.columns[state.curPage];
 
     // 计算文本框宽度
     final viewWidth = MediaQuery.of(context).size.width;
@@ -109,7 +123,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
     );
   }
 
-  Widget _exprsList(BuildContext context, WidgetRef ref) {
+  Widget _exprsList(BuildContext context) {
     final state = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
 
@@ -118,18 +132,18 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
       return const Center();
     } else if (state.imgBytes == null) {
       return const Center(child: Text("请先选择图像进行识别"));
-    } else if (state.paginated) {
+    } else if (_paginated) {
       // 二维模式，分页展示元素
       return PageView.builder(
         itemCount: state.columns.length,
-        onPageChanged: (index) => notifier.setCurCol(index),
+        onPageChanged: (index) => notifier.setCurPage(index),
         itemBuilder: (context, index) {
-          return _buildListView(context, ref);
+          return _buildListView(context);
         },
       );
     } else {
       // 一维模式，将所有元素放在一个列表中
-      return _buildListView(context, ref);
+      return _buildListView(context);
     }
   }
 
@@ -159,11 +173,9 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
             onPressed: () => OcrImagePage.showImagePreview(context, ref),
           ),
           IconButton(
-            icon: Icon(
-              ocrState.paginated ? Icons.view_carousel : Icons.view_agenda,
-            ),
-            tooltip: ocrState.paginated ? '分页' : '列表',
-            onPressed: () => notifier.togglePagination(),
+            icon: Icon(_paginated ? Icons.view_carousel : Icons.view_agenda),
+            tooltip: _paginated ? '分页' : '列表',
+            onPressed: () => _togglePagination(),
           ),
         ],
       ),
@@ -179,7 +191,7 @@ class _OcrExprsPageState extends ConsumerState<OcrExprsPage> {
           ),
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.8,
-            child: _exprsList(context, ref),
+            child: _exprsList(context),
           ),
         ],
       ),

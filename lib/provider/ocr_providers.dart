@@ -24,12 +24,6 @@ class OcrResultState {
   /// 是否正在加载
   final bool loading;
 
-  /// 错误信息
-  final String? error;
-
-  /// 是否分页
-  final bool paginated;
-
   /// 是否展示表达式列表
   final bool showExprs;
 
@@ -40,7 +34,7 @@ class OcrResultState {
   final String focusedUid;
 
   /// 当前页
-  final int curCol;
+  final int curPage;
 
   /// 构造函数
   OcrResultState({
@@ -48,12 +42,10 @@ class OcrResultState {
     required this.columns,
     required this.ans,
     this.loading = false,
-    this.error,
-    this.paginated = false,
     this.showExprs = false,
     this.imgParsed = false,
     this.focusedUid = '',
-    this.curCol = -1,
+    this.curPage = -1,
   });
 
   /// 深度拷贝并更新某个字段
@@ -62,35 +54,32 @@ class OcrResultState {
     List<List<OcrItem>>? columns,
     double? ans,
     bool? loading,
-    String? error,
-    bool? paginated,
     bool? showExprs,
     bool? imgParsed,
     String? focusedUid,
-    int? curCol,
+    int? curPage,
   }) => OcrResultState(
     imgBytes: imgBytes ?? this.imgBytes,
     columns: columns ?? this.columns,
     ans: ans ?? this.ans,
     loading: loading ?? this.loading,
-    error: error,
-    paginated: paginated ?? this.paginated,
     showExprs: showExprs ?? this.showExprs,
     imgParsed: imgParsed ?? this.imgParsed,
     focusedUid: focusedUid ?? this.focusedUid,
-    curCol: curCol ?? this.curCol,
+    curPage: curPage ?? this.curPage,
   );
 }
 
 /// OCR 识别结果 StateNotifier，Provider 核心，负责处理状态逻辑
 class OcrResultNotifier extends StateNotifier<OcrResultState> {
   final OcrRepository repo;
+
   OcrResultNotifier(this.repo)
     : super(OcrResultState(imgBytes: null, columns: [], ans: 0));
 
   /// 识别新的图片并计算结果
   Future<void> parse() async {
-    state = state.copyWith(loading: true, error: null);
+    state = state.copyWith(loading: true);
     try {
       final (columns, ans) = await repo.parseAndCalc(state.imgBytes);
       state = state.copyWith(
@@ -99,33 +88,30 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
         loading: false,
         imgParsed: true,
       );
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), loading: false);
-      rethrow; // 重新抛出异常以便上层捕获
+    } finally {
+      state = state.copyWith(loading: false);
     }
   }
 
   /// 重新计算
   Future<void> recalculate() async {
-    state = state.copyWith(loading: true, error: null);
+    state = state.copyWith(loading: true);
     try {
       final (columns, ans) = await repo.recalculate(state.columns);
       state = state.copyWith(columns: columns, ans: ans, loading: false);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), loading: false);
-      rethrow;
+    } finally {
+      state = state.copyWith(loading: false);
     }
   }
 
   /// 导出文件
   Future<void> export() async {
-    state = state.copyWith(loading: true, error: null);
+    state = state.copyWith(loading: true);
     try {
       await repo.export(state.columns, state.ans);
       state = state.copyWith(loading: false);
-    } catch (e) {
-      state = state.copyWith(error: e.toString(), loading: false);
-      rethrow;
+    } finally {
+      state = state.copyWith(loading: false);
     }
   }
 
@@ -155,8 +141,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   }
 
   /// 设置当前页
-  void setCurCol(int colIdx) {
-    state = state.copyWith(curCol: colIdx);
+  void setCurPage(int colIdx) {
+    state = state.copyWith(curPage: colIdx);
   }
 
   /// 添加项，在焦点位置添加空表达式，无焦点则添加到末尾，完成后聚焦到新项
@@ -166,8 +152,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     final newColumns = [...state.columns];
     if (result == null) {
       // 未找到对应的 uid，无焦点，添加到当前页的末端
-      final curCol = state.curCol != -1 ? state.curCol : newColumns.length - 1;
-      newColumns[curCol].add(newItem);
+      final curPage = state.curPage != -1 ? state.curPage : newColumns.length - 1;
+      newColumns[curPage].add(newItem);
     } else {
       final (colIdx, itemIdx) = (result.col, result.row);
       newColumns[colIdx] = [...newColumns[colIdx]];
@@ -209,14 +195,5 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       if (row != -1) return (col: col, row: row, item: columns[col][row]);
     }
     return null;
-  }
-
-  /// 切换分页
-  void togglePagination() {
-    state = state.copyWith(
-      paginated: !state.paginated,
-      curCol: !state.paginated ? 0 : -1,
-      focusedUid: '',
-    );
   }
 }
