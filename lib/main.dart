@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:icc/provider/ocr_providers.dart';
+import 'package:icc/utils.dart';
 import 'package:icc/widgets/ocr_image.dart';
 import 'package:icc/widgets/ocr_exprs.dart';
-
 import 'package:logging/logging.dart';
 
 class OcrHomePage extends ConsumerWidget {
@@ -42,7 +42,19 @@ class OcrHomePage extends ConsumerWidget {
               label: '选择图片',
             ),
             SpeedDialChild(
-              onTap: () => notifier.export(),
+              onTap: () async {
+                try {
+                  await notifier.export();
+                } catch (e) {
+                  if (context.mounted) {
+                    OcrUtils.showErrorDialog(
+                      context,
+                      e.toString(),
+                      title: '导出失败',
+                    );
+                  }
+                }
+              },
               child: const Icon(Icons.file_download),
               label: '下载表格',
             ),

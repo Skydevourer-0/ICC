@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:icc/utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:icc/provider/ocr_providers.dart';
 
@@ -83,14 +84,7 @@ class OcrImagePage extends ConsumerWidget {
       notifier.setShowExprs(true);
     } catch (e) {
       if (context.mounted) {
-        showDialog(
-          context: context,
-          builder:
-              (_) => AlertDialog(
-                title: const Text('解析失败'),
-                content: Text(e.toString()),
-              ),
-        );
+        OcrUtils.showErrorDialog(context, e.toString(), title: '解析失败');
       }
     }
   }

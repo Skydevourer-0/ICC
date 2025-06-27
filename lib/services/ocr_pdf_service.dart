@@ -96,22 +96,15 @@ class OcrPdfService {
         margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         build:
             (context) => [
-              pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    '总计: ${ans.toStringAsFixed(2)}',
-                    style: pw.TextStyle(font: fontFamily, fontSize: 22),
-                  ),
-                  pw.SizedBox(height: 10),
-                  pw.Wrap(
-                    spacing: 30,
-                    runSpacing: 10,
-                    children: [
-                      for (var col in columns) _buildColumnWidget(col),
-                    ],
-                  ),
-                ],
+              pw.Text(
+                '总计: ${ans.toStringAsFixed(2)}',
+                style: pw.TextStyle(font: fontFamily, fontSize: 22),
+              ),
+              pw.SizedBox(height: 10),
+              pw.Wrap(
+                spacing: 30,
+                runSpacing: 10,
+                children: [for (var col in columns) _buildColumnWidget(col)],
               ),
             ],
       ),

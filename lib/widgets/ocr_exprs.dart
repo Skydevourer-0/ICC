@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/widgets/ocr_image.dart';
+import 'package:icc/utils.dart';
 
 /// OCR 表达式页面，负责识别图像中的表达式，展示和计算表达式结果
 class OcrExprsPage extends ConsumerStatefulWidget {
@@ -20,14 +21,7 @@ class OcrExprsPage extends ConsumerStatefulWidget {
       await notifier.recalculate();
     } catch (e) {
       if (context.mounted) {
-        showDialog(
-          context: context,
-          builder:
-              (_) => AlertDialog(
-                title: const Text('计算失败'),
-                content: Text(e.toString()),
-              ),
-        );
+        OcrUtils.showErrorDialog(context, e.toString(), title: '计算失败');
       }
     }
   }
