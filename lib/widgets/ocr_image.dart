@@ -133,16 +133,39 @@ class OcrImagePage extends ConsumerWidget {
 
   Widget _floatingButton(BuildContext context, WidgetRef ref) {
     final ocrState = ref.watch(ocrResultProvider);
-
-    return FloatingActionButton(
-      shape: const CircleBorder(),
-      onPressed: () async {
-        return ocrState.imgParsed
-            ? _onParsed(context)
-            : _parseImage(context, ref);
-      },
-      child:
-          ocrState.imgParsed ? const Icon(Icons.calculate) : const Text('解析'),
+    final notifier = ref.read(ocrResultProvider.notifier);
+    // 如果没有图像数据，返回空
+    if (ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () => notifier.setImage(null),
+          child: const Icon(Icons.clear),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () => notifier.rotateImage(),
+          child: const Icon(Icons.rotate_right),
+        ),
+        const SizedBox(height: 8),
+        FloatingActionButton(
+          shape: const CircleBorder(),
+          onPressed: () async {
+            return ocrState.imgParsed
+                ? _onParsed(context)
+                : _parseImage(context, ref);
+          },
+          child:
+              ocrState.imgParsed
+                  ? const Icon(Icons.calculate)
+                  : const Text('解析'),
+        ),
+      ],
     );
   }
 
@@ -164,10 +187,7 @@ class OcrImagePage extends ConsumerWidget {
           if (ocrState.loading) OcrUtils.loadingPage(),
         ],
       ),
-      floatingActionButton:
-          ocrState.imgBytes != null
-              ? _floatingButton(context, ref)
-              : const SizedBox.shrink(),
+      floatingActionButton: _floatingButton(context, ref),
     );
   }
 }

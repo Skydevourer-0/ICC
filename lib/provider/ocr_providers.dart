@@ -144,12 +144,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     state = state.copyWith(loading: true);
     try {
       final (columns, ans) = await repo.parseAndCalc(state.imgBytes);
-      state = state.copyWith(
-        columns: columns,
-        ans: ans,
-        loading: false,
-        imgParsed: true,
-      );
+      state = state.copyWith(columns: columns, ans: ans, imgParsed: true);
     } finally {
       state = state.copyWith(loading: false);
       await saveState();
@@ -161,7 +156,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     state = state.copyWith(loading: true);
     try {
       final (columns, ans) = await repo.recalculate(state.columns);
-      state = state.copyWith(columns: columns, ans: ans, loading: false);
+      state = state.copyWith(columns: columns, ans: ans);
     } finally {
       state = state.copyWith(loading: false);
       await saveState();
@@ -173,22 +168,28 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     state = state.copyWith(loading: true);
     try {
       await repo.export(state.columns, state.ans);
-      state = state.copyWith(loading: false);
     } finally {
       state = state.copyWith(loading: false);
       await saveState();
     }
   }
 
+  /// 旋转图像
+  void rotateImage() {
+    if (state.imgBytes == null || state.imgBytes!.isEmpty) {
+      throw ArgumentError('图像数据不能为空');
+    }
+    final rotated = repo.rotateImage(state.imgBytes!);
+    state = state.copyWith(imgBytes: rotated);
+
+    saveState();
+  }
+
   /// 设置图像数据
   void setImage(Uint8List? bytes) {
-    state = state.copyWith(
-      imgBytes: bytes,
-      columns: [],
-      ans: 0,
-      imgParsed: false,
-    );
+    state = OcrResultState(imgBytes: bytes, columns: [], ans: 0);
   }
+
   /// 设置加载状态
   void setLoading(bool loading) {
     state = state.copyWith(loading: loading);

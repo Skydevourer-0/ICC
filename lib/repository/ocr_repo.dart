@@ -30,4 +30,9 @@ class OcrRepository {
     final pdfService = OcrPdfService(columns, ans);
     return await pdfService.export();
   }
+
+  /// 旋转图片
+  Uint8List rotateImage(Uint8List imgBytes) {
+    return OcrService.rotateImage(imgBytes);
+  }
 }

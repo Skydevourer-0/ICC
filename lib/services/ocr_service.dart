@@ -108,6 +108,20 @@ class OcrService {
     return base64Str;
   }
 
+  /// 图像旋转
+  static Uint8List rotateImage(Uint8List imgBytes) {
+    // 使用 image 库解码图片
+    final image = img_lib.decodeImage(imgBytes);
+    if (image == null) {
+      throw Exception('图片解码失败');
+    }
+    // 旋转图像
+    final rotated = img_lib.copyRotate(image, angle: 90);
+    // 编码为 jpg bytes
+    final jpgBytes = img_lib.encodeJpg(rotated);
+    return jpgBytes;
+  }
+
   /// 计算算式
   static double regexCalculate(List<List<OcrItem>> columns) {
     final mulSigns = r'[xX\*\×]';
