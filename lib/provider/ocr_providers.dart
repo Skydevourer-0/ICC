@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/model/ocr_item.dart';
 import 'package:icc/repository/ocr_repo.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('OcrResultNotifier');
 
 /// OCR 识别结果 Provider，暴露的入口
 final ocrResultProvider =
@@ -72,10 +77,76 @@ class OcrResultState {
 
 /// OCR 识别结果 StateNotifier，Provider 核心，负责处理状态逻辑
 class OcrResultNotifier extends StateNotifier<OcrResultState> {
+  // Hive 数据库名称
+  static const String _boxName = 'ocr_state';
+  // OCR 仓库实例
   final OcrRepository repo;
+  // 防抖计时器
+  Timer? _debounce;
 
   OcrResultNotifier(this.repo)
-    : super(OcrResultState(imgBytes: null, columns: [], ans: 0));
+    : super(
+        OcrResultState(imgBytes: null, columns: [], ans: 0, loading: true),
+      ) {
+    loadState().then((loaded) => state = loaded.copyWith(loading: false));
+  }
+
+  /// 加载状态
+  Future<OcrResultState> loadState() async {
+    try {
+      final box = await Hive.openBox(_boxName);
+
+      final imgBytes = box.get('imgBytes');
+      final columnsRaw = box.get('columns');
+      final ans = box.get('ans');
+      final loading = box.get('loading');
+      final showExprs = box.get('showExprs');
+      final imgParsed = box.get('imgParsed');
+      final focusedUid = box.get('focusedUid');
+      final curPage = box.get('curPage');
+
+      // 此时，从 hive 中读取的 columns 类型为 List<dynamic>
+      // 需要转换为 List<List<OcrItem>> 类型
+      final List<List<OcrItem>>? columns =
+          columnsRaw?.map<List<OcrItem>>((col) {
+            return (col as List).cast<OcrItem>();
+          }).toList();
+
+      return OcrResultState(
+        imgBytes: imgBytes,
+        columns: columns ?? [],
+        ans: ans ?? 0.0,
+        loading: loading ?? false,
+        showExprs: showExprs ?? false,
+        imgParsed: imgParsed ?? false,
+        focusedUid: focusedUid ?? '',
+        curPage: curPage ?? -1,
+      );
+    } catch (e, stack) {
+      // 如果加载失败，返回默认状态
+      _logger.severe('加载 OCR 状态失败: $e\n$stack');
+      return OcrResultState(imgBytes: null, columns: [], ans: 0);
+    }
+  }
+
+  /// 保存状态
+  Future<void> saveState() async {
+    try {
+      // 打开 Hive 数据库
+      final box = await Hive.openBox(_boxName);
+
+      await box.put('imgBytes', state.imgBytes);
+      await box.put('columns', state.columns);
+      await box.put('ans', state.ans);
+      await box.put('loading', state.loading);
+      await box.put('showExprs', state.showExprs);
+      await box.put('imgParsed', state.imgParsed);
+      await box.put('focusedUid', state.focusedUid);
+      await box.put('curPage', state.curPage);
+    } catch (e, stack) {
+      _logger.severe('保存 OCR 状态失败: $e\n$stack');
+    }
+  }
 
   /// 识别新的图片并计算结果
   Future<void> parse() async {
@@ -90,6 +161,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       );
     } finally {
       state = state.copyWith(loading: false);
+      await saveState();
     }
   }
 
@@ -101,6 +173,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       state = state.copyWith(columns: columns, ans: ans, loading: false);
     } finally {
       state = state.copyWith(loading: false);
+      await saveState();
     }
   }
 
@@ -112,6 +185,7 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       state = state.copyWith(loading: false);
     } finally {
       state = state.copyWith(loading: false);
+      await saveState();
     }
   }
 
@@ -152,7 +226,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     final newColumns = [...state.columns];
     if (result == null) {
       // 未找到对应的 uid，无焦点，添加到当前页的末端
-      final curPage = state.curPage != -1 ? state.curPage : newColumns.length - 1;
+      final curPage =
+          state.curPage != -1 ? state.curPage : newColumns.length - 1;
       newColumns[curPage].add(newItem);
     } else {
       final (colIdx, itemIdx) = (result.col, result.row);
@@ -160,6 +235,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
       newColumns[colIdx].insert(itemIdx + 1, newItem);
     }
     state = state.copyWith(columns: newColumns, focusedUid: newItem.uid);
+
+    saveState();
   }
 
   /// 删除某项
@@ -173,6 +250,8 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     final newColumns = [...state.columns];
     newColumns[colIdx] = [...newColumns[colIdx]]..removeAt(itemIdx);
     state = state.copyWith(columns: newColumns);
+
+    saveState();
   }
 
   /// 修改某项
@@ -184,6 +263,13 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     newColumns[colIdx] = [...newColumns[colIdx]];
     newColumns[colIdx][itemIdx].words = value;
     state = state.copyWith(columns: newColumns);
+
+    // 防抖更新
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(seconds: 1), () {
+      // 更新后保存状态
+      saveState();
+    });
   }
 
   /// 查找项

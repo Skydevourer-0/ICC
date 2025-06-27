@@ -1,15 +1,44 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:icc/model/ocr_item.dart';
 import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/utils.dart';
 import 'package:icc/widgets/ocr_image.dart';
 import 'package:icc/widgets/ocr_exprs.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-class OcrHomePage extends ConsumerWidget {
+class OcrHomePage extends ConsumerStatefulWidget {
   const OcrHomePage({super.key});
 
-  Widget floatingButton(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<OcrHomePage> createState() => _OcrHomePageState();
+}
+
+/// OCR 首页，包含监听器
+class _OcrHomePageState extends ConsumerState<OcrHomePage>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 当应用进入后台时，保存 OCR 状态
+    if (state == AppLifecycleState.paused) {
+      ref.read(ocrResultProvider.notifier).saveState();
+    }
+  }
+
+  Widget floatingButton(BuildContext context) {
     final ocrState = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
 
@@ -78,7 +107,7 @@ class OcrHomePage extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final ocrState = ref.watch(ocrResultProvider);
 
     return Scaffold(
@@ -113,13 +142,18 @@ class OcrHomePage extends ConsumerWidget {
             ),
         ],
       ),
-      floatingActionButton: floatingButton(context, ref),
+      floatingActionButton: floatingButton(context),
     );
   }
 }
 
-void main() {
+void main() async {
+  // 注册 Hive 进行数据持久化存储
+  WidgetsFlutterBinding.ensureInitialized(); // 确保 Flutter 引擎已初始化
+  await Hive.initFlutter();
+  Hive.registerAdapter(OcrItemAdapter());
   // 设置日志打印
   OcrUtils.setupLogging();
+  // 启动应用
   runApp(ProviderScope(child: MaterialApp(home: OcrHomePage())));
 }
