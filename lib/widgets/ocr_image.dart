@@ -149,7 +149,9 @@ class OcrImagePage extends ConsumerWidget {
         const SizedBox(height: 8),
         FloatingActionButton(
           shape: const CircleBorder(),
-          onPressed: () => notifier.rotateImage(),
+          onPressed: () async {
+            await notifier.rotateImage();
+          },
           child: const Icon(Icons.rotate_right),
         ),
         const SizedBox(height: 8),

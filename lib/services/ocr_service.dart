@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:icc/model/ocr_item.dart';
 import 'package:image/image.dart' as img_lib;
@@ -109,17 +109,19 @@ class OcrService {
   }
 
   /// 图像旋转
-  static Uint8List rotateImage(Uint8List imgBytes) {
-    // 使用 image 库解码图片
-    final image = img_lib.decodeImage(imgBytes);
-    if (image == null) {
-      throw Exception('图片解码失败');
-    }
-    // 旋转图像
-    final rotated = img_lib.copyRotate(image, angle: 90);
-    // 编码为 jpg bytes
-    final jpgBytes = img_lib.encodeJpg(rotated);
-    return jpgBytes;
+  static Future<Uint8List> rotateImage(Uint8List imgBytes) {
+    return compute((Uint8List imgBytes) {
+      // 使用 image 库解码图片
+      final image = img_lib.decodeImage(imgBytes);
+      if (image == null) {
+        throw Exception('图片解码失败');
+      }
+      // 旋转图像
+      final rotated = img_lib.copyRotate(image, angle: 90);
+      // 编码为 jpg bytes
+      final jpgBytes = img_lib.encodeJpg(rotated);
+      return jpgBytes;
+    }, imgBytes);
   }
 
   /// 计算算式

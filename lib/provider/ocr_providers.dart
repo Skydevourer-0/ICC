@@ -175,13 +175,17 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   }
 
   /// 旋转图像
-  void rotateImage() {
+  Future<void> rotateImage() async {
     if (state.imgBytes == null || state.imgBytes!.isEmpty) {
       throw ArgumentError('图像数据不能为空');
     }
-    final rotated = repo.rotateImage(state.imgBytes!);
-    state = state.copyWith(imgBytes: rotated);
-
+    state = state.copyWith(loading: true);
+    try {
+      final rotated = await repo.rotateImage(state.imgBytes!);
+      setImage(rotated);
+    } finally {
+      state = state.copyWith(loading: false);
+    }
     saveState();
   }
 
