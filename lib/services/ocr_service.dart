@@ -109,7 +109,7 @@ class OcrService {
   }
 
   /// 图像旋转
-  static Future<Uint8List> rotateImage(Uint8List imgBytes) {
+  static Future<Uint8List> rotateImage(Uint8List imgBytes, int angle) {
     return compute((Uint8List imgBytes) {
       // 使用 image 库解码图片
       final image = img_lib.decodeImage(imgBytes);
@@ -117,7 +117,7 @@ class OcrService {
         throw Exception('图片解码失败');
       }
       // 旋转图像
-      final rotated = img_lib.copyRotate(image, angle: 90);
+      final rotated = img_lib.copyRotate(image, angle: angle);
       // 编码为 jpg bytes
       final jpgBytes = img_lib.encodeJpg(rotated);
       return jpgBytes;

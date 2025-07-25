@@ -1,8 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:icc/provider/ocr_providers.dart';
 import 'package:icc/utils.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 /// OCR 图像页面，负责选择图像并展示的逻辑
 class OcrImagePage extends ConsumerWidget {
@@ -30,7 +34,7 @@ class OcrImagePage extends ConsumerWidget {
   }
 
   /// 选择图像来源
-  static void pickImageSource(BuildContext context, WidgetRef ref) {
+  static void _pickImageSource(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (context) {
@@ -57,11 +61,15 @@ class OcrImagePage extends ConsumerWidget {
   }
 
   /// 预览图像
-  static void showImagePreview(BuildContext context, WidgetRef ref) {
-    final imgBytes = ref.read(ocrResultProvider).imgBytes;
+  static void showImagePreview(
+    BuildContext context,
+    WidgetRef ref, [
+    Uint8List? imgBytes,
+  ]) {
+    imgBytes ??= ref.read(ocrResultProvider).imgBytes;
     // 若没有图像数据，提示用户选择图像
     if (imgBytes == null || imgBytes.isEmpty) {
-      return pickImageSource(context, ref);
+      return _pickImageSource(context, ref);
     }
     showGeneralDialog(
       context: context,
@@ -70,7 +78,7 @@ class OcrImagePage extends ConsumerWidget {
             color: Colors.black,
             child: GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: InteractiveViewer(child: Image.memory(imgBytes)),
+              child: InteractiveViewer(child: Image.memory(imgBytes!)),
             ),
           ),
     );
@@ -131,42 +139,120 @@ class OcrImagePage extends ConsumerWidget {
     }
   }
 
+  Widget _buildHistoryList(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(ocrResultProvider.notifier);
+    final tsFormatter = DateFormat('yyyy-MM-dd HH:mm:ss');
+    // 局部状态
+    bool loading = true;
+    List<String> timestamps = [];
+    // 通过 StatefulBuilder 构造能够修改局部状态的结构，不需要将整个组件变为 Stateful
+    return StatefulBuilder(
+      builder: (context, setState) {
+        if (loading) {
+          // 加载数据
+          notifier.getAllTimestamps().then((data) {
+            timestamps = data;
+            loading = false;
+            setState(() {});
+          });
+          return Center(child: CircularProgressIndicator());
+        }
+        if (timestamps.isEmpty) {
+          return Center(child: Text('暂无历史记录', style: TextStyle(fontSize: 18)));
+        }
+        return ListView.builder(
+          itemCount: timestamps.length,
+          itemBuilder: (context, index) {
+            final ts = timestamps[index];
+            final formattedTs = tsFormatter.format(DateTime.parse(ts));
+            return ListTile(
+              key: ValueKey(ts),
+              leading: IconButton(
+                icon: Icon(Icons.clear),
+                onPressed: () async {
+                  await notifier.deleteTimestamp(ts);
+                  // 更新局部状态
+                  notifier.getAllTimestamps().then((data) {
+                    timestamps = data;
+                    loading = false;
+                    // 刷新 UI 状态
+                    setState(() {});
+                  });
+                },
+              ),
+              title: Text(formattedTs),
+              trailing: IconButton(
+                icon: Icon(Icons.image),
+                onPressed: () async {
+                  final imgBytes = await notifier.loadImgBytes(ts);
+                  if (imgBytes != null && context.mounted) {
+                    showImagePreview(context, ref, imgBytes);
+                  }
+                },
+              ),
+              onTap: () async {
+                await notifier.loadState(ts);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                }
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showHistoryList(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => _buildHistoryList(context, ref),
+    );
+  }
+
   Widget _floatingButton(BuildContext context, WidgetRef ref) {
     final ocrState = ref.watch(ocrResultProvider);
     final notifier = ref.read(ocrResultProvider.notifier);
-    // 如果没有图像数据，返回空
+
+    // 如果没有图像数据，仅返回历史按钮
     if (ocrState.imgBytes == null || ocrState.imgBytes!.isEmpty) {
-      return const SizedBox.shrink();
+      return FloatingActionButton(
+        shape: const CircleBorder(),
+        onPressed: () => _showHistoryList(context, ref),
+        child: const Icon(Icons.history),
+      );
     }
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    return SpeedDial(
+      icon: Icons.more_horiz,
+      activeIcon: Icons.done,
+      spacing: 16,
       children: [
-        FloatingActionButton(
-          shape: const CircleBorder(),
-          onPressed: () => notifier.setImage(null),
-          child: const Icon(Icons.clear),
+        SpeedDialChild(
+          child: Icon(Icons.history),
+          label: '历史记录',
+          onTap: () => _showHistoryList(context, ref),
         ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
-          shape: const CircleBorder(),
-          onPressed: () async {
-            await notifier.rotateImage();
-          },
-          child: const Icon(Icons.rotate_right),
+        SpeedDialChild(
+          child: Icon(Icons.clear),
+          label: '清除图片',
+          onTap: () => notifier.setImage(null),
         ),
-        const SizedBox(height: 8),
-        FloatingActionButton(
-          shape: const CircleBorder(),
-          onPressed: () async {
-            return ocrState.imgParsed
-                ? _onParsed(context)
-                : _parseImage(context, ref);
-          },
-          child:
-              ocrState.imgParsed
-                  ? const Icon(Icons.calculate)
-                  : const Text('解析'),
+        SpeedDialChild(
+          child: Icon(Icons.crop_rotate),
+          label: '旋转图片',
+          onTap: () async => await notifier.rotateImage(-90),
         ),
+        ocrState.imgParsed
+            ? SpeedDialChild(
+              child: Icon(Icons.iso),
+              label: '计算结果',
+              onTap: () => _onParsed(context),
+            )
+            : SpeedDialChild(
+              child: Icon(Icons.psychology),
+              label: '解析图片',
+              onTap: () => _parseImage(context, ref),
+            ),
       ],
     );
   }
@@ -182,7 +268,7 @@ class OcrImagePage extends ConsumerWidget {
             child: GestureDetector(
               onTap: () => showImagePreview(context, ref),
               // 长按重新选择图像
-              onLongPress: () => pickImageSource(context, ref),
+              onLongPress: () => _pickImageSource(context, ref),
               child: _buildImageView(context, ref),
             ),
           ),

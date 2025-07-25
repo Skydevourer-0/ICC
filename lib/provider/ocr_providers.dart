@@ -72,7 +72,9 @@ class OcrResultState {
 /// OCR 识别结果 StateNotifier，Provider 核心，负责处理状态逻辑
 class OcrResultNotifier extends StateNotifier<OcrResultState> {
   // Hive 数据库名称
-  static const String _boxName = 'ocr_state';
+  static const String _historyBoxName = 'ocr_state_history';
+  // 最大历史记录数
+  static const int _maxHistoryLength = 20;
   // OCR 仓库实例
   final OcrRepository repo;
   // 防抖计时器
@@ -82,42 +84,80 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
     : super(
         OcrResultState(imgBytes: null, columns: [], ans: 0, loading: true),
       ) {
-    loadState().then((loaded) => state = loaded.copyWith(loading: false));
+    loadState();
   }
 
+  Future<Box<Map>> _openHistoryBox() async {
+    return await Hive.openBox<Map>(_historyBoxName);
+  }
+
+  bool _isSameImage(Uint8List? a, Uint8List? b) {
+    if (a == null && b == null) return true;
+    if (a == null || b == null) return false;
+    if (a.lengthInBytes != b.lengthInBytes) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  Map<String, dynamic> _stateToMap(OcrResultState state) => {
+    'imgBytes': state.imgBytes,
+    'columns': state.columns,
+    'ans': state.ans,
+    'loading': state.loading,
+    'imgParsed': state.imgParsed,
+    'focusedUid': state.focusedUid,
+    'curPage': state.curPage,
+  };
+
+  OcrResultState _mapToState(Map map) => OcrResultState(
+    imgBytes: map['imgBytes'],
+    columns:
+        map['columns'].map<List<OcrItem>>((col) {
+          return (col as List).cast<OcrItem>();
+        }).toList() ??
+        [],
+    ans: map['ans'] ?? 0.0,
+    loading: map['loading'] ?? false,
+    imgParsed: map['imgParsed'] ?? false,
+    focusedUid: map['focusedUid'] ?? '',
+    curPage: map['curPage'] ?? -1,
+  );
+
   /// 加载状态
-  Future<OcrResultState> loadState() async {
+  Future<void> loadState([String? timestamp]) async {
     try {
-      final box = await Hive.openBox(_boxName);
-
-      final imgBytes = box.get('imgBytes');
-      final columnsRaw = box.get('columns');
-      final ans = box.get('ans');
-      final loading = box.get('loading');
-      final imgParsed = box.get('imgParsed');
-      final focusedUid = box.get('focusedUid');
-      final curPage = box.get('curPage');
-
-      // 此时，从 hive 中读取的 columns 类型为 List<dynamic>
-      // 需要转换为 List<List<OcrItem>> 类型
-      final List<List<OcrItem>>? columns =
-          columnsRaw?.map<List<OcrItem>>((col) {
-            return (col as List).cast<OcrItem>();
-          }).toList();
-
-      return OcrResultState(
-        imgBytes: imgBytes,
-        columns: columns ?? [],
-        ans: ans ?? 0.0,
-        loading: loading ?? false,
-        imgParsed: imgParsed ?? false,
-        focusedUid: focusedUid ?? '',
-        curPage: curPage ?? -1,
-      );
+      final box = await _openHistoryBox();
+      String? key = timestamp;
+      if (key == null && box.isNotEmpty) {
+        // 取最大值
+        key = box.keys.reduce((a, b) => a.compareTo(b) > 0 ? a : b);
+      }
+      if (key != null) {
+        final map = box.get(key);
+        if (map != null) {
+          state = _mapToState(map).copyWith(loading: false);
+          return;
+        }
+      }
+      throw StateError('历史记录不存在.');
     } catch (e, stack) {
       // 如果加载失败，返回默认状态
       _logger.severe('加载 OCR 状态失败: $e\n$stack');
-      return OcrResultState(imgBytes: null, columns: [], ans: 0);
+      state = OcrResultState(imgBytes: null, columns: [], ans: 0);
+    }
+  }
+
+  /// 加载历史图像
+  Future<Uint8List?> loadImgBytes(String timestamp) async {
+    try {
+      final box = await _openHistoryBox();
+      final map = box.get(timestamp);
+      return map?['imgBytes'];
+    } catch (e, stack) {
+      _logger.severe('加载历史图像 [$timestamp] 失败: $e\n$stack');
+      return null;
     }
   }
 
@@ -125,18 +165,42 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   Future<void> saveState() async {
     try {
       // 打开 Hive 数据库
-      final box = await Hive.openBox(_boxName);
+      final box = await _openHistoryBox();
+      String key = DateTime.now().toIso8601String();
+      if (box.isNotEmpty) {
+        final latestKey = box.keys.reduce((a, b) => a.compareTo(b) > 0 ? a : b);
+        final latest = latestKey != null ? box.get(latestKey) : null;
+        final curImgBytes = state.imgBytes;
+        final lastImgBytes = latest?['imgBytes'];
+        if (_isSameImage(curImgBytes, lastImgBytes)) {
+          key = latestKey!;
+        }
+      }
+      // 更新当前时间戳的记录
+      final updated = _stateToMap(state);
+      await box.put(key, updated);
 
-      await box.put('imgBytes', state.imgBytes);
-      await box.put('columns', state.columns);
-      await box.put('ans', state.ans);
-      await box.put('loading', state.loading);
-      await box.put('imgParsed', state.imgParsed);
-      await box.put('focusedUid', state.focusedUid);
-      await box.put('curPage', state.curPage);
+      // 限制记录数量
+      if (box.keys.length >= _maxHistoryLength) {
+        final minKey = box.keys.reduce((a, b) => a.compareTo(b) < 0 ? a : b);
+        await box.delete(minKey);
+      }
     } catch (e, stack) {
       _logger.severe('保存 OCR 状态失败: $e\n$stack');
     }
+  }
+
+  /// 获取所有时间戳列表
+  Future<List<String>> getAllTimestamps() async {
+    final box = await _openHistoryBox();
+    final keys = box.keys.cast<String>().toList()..sort();
+    return keys.reversed.toList(); // 新的在上
+  }
+
+  /// 删除指定时间戳
+  Future<void> deleteTimestamp(String timestamp) async {
+    final box = await _openHistoryBox();
+    await box.delete(timestamp);
   }
 
   /// 识别新的图片并计算结果
@@ -175,13 +239,13 @@ class OcrResultNotifier extends StateNotifier<OcrResultState> {
   }
 
   /// 旋转图像
-  Future<void> rotateImage() async {
+  Future<void> rotateImage(int angle) async {
     if (state.imgBytes == null || state.imgBytes!.isEmpty) {
       throw ArgumentError('图像数据不能为空');
     }
     state = state.copyWith(loading: true);
     try {
-      final rotated = await repo.rotateImage(state.imgBytes!);
+      final rotated = await repo.rotateImage(state.imgBytes!, angle);
       setImage(rotated);
     } finally {
       state = state.copyWith(loading: false);

@@ -32,7 +32,7 @@ class OcrRepository {
   }
 
   /// 旋转图片
-  Future<Uint8List> rotateImage(Uint8List imgBytes) async {
-    return await OcrService.rotateImage(imgBytes);
+  Future<Uint8List> rotateImage(Uint8List imgBytes, int angle) async {
+    return await OcrService.rotateImage(imgBytes, angle);
   }
 }
